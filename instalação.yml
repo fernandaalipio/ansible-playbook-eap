@@ -1,0 +1,112 @@
+---
+- name: install jboss org
+  hosts: web
+  become: true
+
+  tasks:
+  - name: Install packages
+    yum:  
+     name:
+       - java-1.8.0-openjdk.x86_64
+       - unzip
+     state: present
+
+  - name: Download JBoss from jboss.org
+    copy:
+      src: files/jboss-eap-7.0.0.zip
+      dest: /opt/
+
+  - name: Extract archive
+    unarchive:
+      src: /opt/jboss-eap-7.0.0.zip
+      dest: /opt/
+      remote_src: yes
+    ignore_errors: true
+
+  - name: Criando grupo JBoss
+    group:
+      name: jboss
+
+  - name: Criando usuario JBoss EAP
+    user:
+      name: jboss
+      group: jboss
+      state: present
+      shell: /bin/bash
+      home: /opt/jboss-eap-7.0
+
+  - name: Change ownership of JBoss installation
+    file:
+      path: /opt/jboss-eap-7.0
+      owner: jboss
+      group: jboss
+     # state: directory
+      recurse: yes
+
+#  - name: Copy the init script
+#    copy:
+#      src: jboss-eap-rhel.sh
+#      dest: /etc/init.d/jboss-eap
+#      mode: 0755
+
+  - name: Instalando Java 8 no host
+    shell: alternatives --install /usr/bin/java java /opt/jdk1.8.0_161/bin/java 2
+    #  - name: Tests
+    #copy: 
+    #  src: /usr/bin/java
+    #  dest: /opt/jdk1.8.0_161
+   
+  - name: Incluindo variaveis de ambiente em ~/.bashrc
+    lineinfile:
+      path: ~/.bashrc
+      line: >
+       export JAVA_HOME= /usr
+       export JRE_HOME= /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.222.b10-0.el8_0.x86_64/jre
+       export PATH=$PATH:/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.222.b10-0.el8_0.x86_64/jre/bin
+      state: present
+
+  - name: Sobrescrevendo arquivo jboss-eap.conf
+    copy:
+      src: jboss-eap-template.conf
+      dest: /opt/jboss-eap-7.0/bin/init.d/jboss-eap.conf
+      force: true
+      mode: 0755
+
+  - name: Copiando para o /etc
+    copy:
+      src: jboss-eap-template.conf
+      dest: /etc/default
+      force: true
+      mode: 0755
+
+  - name: Arrumando standalone.xml
+    copy:
+      src: standalone.xml
+      dest: /opt/jboss-eap-7.0/standalone/configuration/standalone.xml
+      force: yes
+  
+  - name: Copy standalone.sh
+    copy:
+      src: /opt/jboss-eap-7.0/bin/init.d/jboss-eap-rhel.sh
+      
+      dest: /etc/init.d
+      remote_src: true
+      mode: 0775
+
+  - name: Reload de daemon
+    shell: chkconfig --add jboss-eap-rhel.sh
+
+  - name: Start e enable em JBoss EAP 2
+    service:
+      name: jboss-eap-rhel
+      state: started
+      enabled: true
+    ignore_errors: true
+
+    
+#  - name: Deploy Ticket Monster to JBoss
+ #   jboss:
+  #    deploy_path: /opt/jboss-eap-7.0/standalone/deployments
+   #   src: /home/ticket-monster.war
+    #  deployment: ticket-monster.war
+     # state: present

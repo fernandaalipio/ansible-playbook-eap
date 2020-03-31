@@ -1,0 +1,5 @@
+# Deploy war application
+- jboss:
+    src: /tmp/-SNAPSHOT.war
+    deployment:.war
+    state: present
